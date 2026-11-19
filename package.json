@@ -1,0 +1,14 @@
+{
+  "name": "voxel-script",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dependency-free JavaScript voxel recipes, VOX export and CPU preview rendering",
+  "type": "module",
+  "engines": { "node": ">=22.2.0" },
+  "scripts": {
+    "gen": "node gen.mjs",
+    "view": "node view.mjs",
+    "demo": "node gen.mjs && node view.mjs",
+    "test": "node --test"
+  }
+}
