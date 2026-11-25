@@ -9,6 +9,7 @@ import { decodeVox, encodeVox } from '../vox.mjs'
 import { decodePng } from '../png.mjs'
 import { PALETTE } from '../palette.mjs'
 import { Model } from '../model.mjs'
+import { recipes } from '../models.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 function run(script, args, cwd) {
@@ -20,9 +21,12 @@ test('fresh generation, palette, overwrite protection, selection preflight and f
   t.after(() => rmSync(cwd, { recursive: true, force: true }))
   const first = run('gen.mjs', [], cwd)
   assert.equal(first.status, 0, first.stderr)
-  assert.deepEqual(readdirSync(join(cwd, 'build')).sort(), ['lantern.vox', 'mushroom.vox', 'palette.png', 'robot.vox'])
+  // Every registered recipe is exported, so adding one to models.mjs does not break this test.
+  const names = Object.keys(recipes)
+  for (const demo of ['lantern', 'mushroom', 'robot']) assert.ok(names.includes(demo))
+  assert.deepEqual(readdirSync(join(cwd, 'build')).sort(), [...names.map((name) => `${name}.vox`), 'palette.png'].sort())
   const palette = decodePng(readFileSync(join(cwd, 'build/palette.png')))
-  for (const name of ['lantern', 'mushroom', 'robot']) {
+  for (const name of names) {
     const data = decodeVox(readFileSync(join(cwd, `build/${name}.vox`)))
     assert.ok(data.models[0].v.some(Boolean))
     assert.deepEqual(Buffer.from(data.palette), palette.rgba)
