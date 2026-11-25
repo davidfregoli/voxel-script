@@ -188,7 +188,7 @@ test('focus and zoom write a close-up sheet centred on the chosen voxel and repl
 
   for (const [args, message] of [
     [['--focus', '3,0'], /invalid --focus/], [['--focus', '3,0,x'], /invalid --focus/], [['--focus', '3.5,0,2'], /invalid --focus/],
-    [['--focus', '3,0,16'], /outside block, which is 16x16x16/], [['--zoom', '0'], /invalid --zoom/], [['--zoom', '40'], /invalid --zoom/],
+    [['--focus', '3,0,16'], /outside the model: block is 16x16x16/], [['--zoom', '0'], /invalid --zoom/], [['--zoom', '40'], /invalid --zoom/],
     [['--zoom', 'near'], /invalid --zoom/],
   ]) {
     const bad = view(...args)

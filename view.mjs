@@ -139,6 +139,13 @@ try {
         throw new Error(`${name}: expected one model and an embedded RGBA palette`)
       return { name, grid: data.models[0], palette: data.palette }
     })
+    // Check every model against the options before writing anything.
+    for (const { name, grid } of models) {
+      const dims = { x: grid.sx, y: grid.sy, z: grid.sz }
+      const is = `${name} is ${dims.x}x${dims.y}x${dims.z}`
+      for (const [axis, [lo]] of Object.entries(ranges)) if (lo >= dims[axis]) throw new Error(`--clip ${axis}:${lo}.. keeps nothing: ${is}`)
+      if (at && !(at[0] < dims.x && at[1] < dims.y && at[2] < dims.z)) throw new Error(`--focus ${at.join(',')} is outside the model: ${is}`)
+    }
     mkdirSync(values.out, { recursive: true })
     const pad = 12, rowH = size + 32
     const contact = shared ? image(4 * size + 56, 32 + models.length * rowH, BG) : null
@@ -152,16 +159,12 @@ try {
     for (const [row, model] of models.entries()) {
       const { name, palette } = model
       const dims = { x: model.grid.sx, y: model.grid.sy, z: model.grid.sz }
-      for (const [axis, [lo]] of Object.entries(ranges))
-        if (lo >= dims[axis]) throw new Error(`--clip ${axis}:${lo}.. keeps nothing: ${name} is ${dims.x}x${dims.y}x${dims.z}`)
-      if (at && !(at[0] < dims.x && at[1] < dims.y && at[2] < dims.z))
-        throw new Error(`--focus ${at.join(',')} is outside ${name}, which is ${dims.x}x${dims.y}x${dims.z}`)
       const kept = Object.entries(ranges).map(([axis, [lo, hi]]) => [axis, lo, Math.min(hi, dims[axis] - 1)])
       const grid = clipped ? clip(model.grid, ranges) : model.grid
       const cut = clipped ? `-clip-${kept.map(([axis, lo, hi]) => `${axis}${lo}-${hi}`).join('-')}` : ''
       const suffix = cut + (at ? `-focus-${at.join('-')}` : '') + (times !== 1 ? `-zoom-${times}` : '')
-      const label = [name, clipped && `clip ${kept.map(([axis, lo, hi]) => `${axis} ${lo}-${hi}`).join(' ')}`,
-        at && `focus ${at.join(' ')}`, times !== 1 && `zoom ${times}`].filter(Boolean).join(' - ')
+      const cutLabel = clipped ? `${name} - clip ${kept.map(([axis, lo, hi]) => `${axis} ${lo}-${hi}`).join(' ')}` : name
+      const label = [cutLabel, at && `focus ${at.join(' ')}`, times !== 1 && `zoom ${times}`].filter(Boolean).join(' - ')
       // A close-up looks at the centre of the focus voxel, `times` closer than the view that fits the whole model.
       const camera = detail ? {
         target: at ? at.map((n) => n + 0.5) : undefined,
@@ -190,8 +193,7 @@ try {
 
       if (values.elevations) {
         const k = Math.max(1, Math.round(size / Math.max(grid.sx, grid.sy, grid.sz)))
-        const title = clipped ? `${name} - clip ${kept.map(([axis, lo, hi]) => `${axis} ${lo}-${hi}`).join(' ')}` : name
-        save(join(values.out, `${name}-elevations${cut}.png`), elevationSheet(`${title} - elevations`, grid, palette, k))
+        save(join(values.out, `${name}-elevations${cut}.png`), elevationSheet(`${cutLabel} - elevations`, grid, palette, k))
         made.push(`${name}-elevations${cut}.png (${k} px per voxel)`)
       }
 
