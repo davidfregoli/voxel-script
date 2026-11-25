@@ -1,0 +1,281 @@
+{
+  "generatedAt": "2026-11-25T15:14:40.440Z",
+  "dioramas": [
+    {
+      "id": "onsen",
+      "title": "Yuzu Capybara Onsen",
+      "subtitle": "Snowy Hot Spring",
+      "description": "Two blissful capybaras soaking in a steaming volcanic turquoise spring, with a balanced yuzu citrus, bamboo water spout, and snow-dusted pines.",
+      "defaultMood": "dusk",
+      "accent": "#50c1be",
+      "particles": "snow-steam",
+      "camera": {
+        "az": 38,
+        "el": 32,
+        "zoom": 1.02
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 54,
+        "voxels": 47992,
+        "glowVoxels": 28,
+        "colors": 49,
+        "bytes": 193526
+      }
+    },
+    {
+      "id": "teahouse",
+      "title": "Sakura Koi Pavilion",
+      "subtitle": "Moonlit Tea Garden",
+      "description": "A timber tea pavilion with glowing shoji screens perched over a clear koi pond, arched vermilion bridge, and blooming cherry blossom canopy.",
+      "defaultMood": "golden",
+      "accent": "#f6a8c2",
+      "particles": "sakura",
+      "camera": {
+        "az": 42,
+        "el": 33,
+        "zoom": 1
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 58,
+        "voxels": 48125,
+        "glowVoxels": 294,
+        "colors": 45,
+        "bytes": 194058
+      }
+    },
+    {
+      "id": "bakery",
+      "title": "Toadstool Hollow Bakery",
+      "subtitle": "Woodland Patisserie",
+      "description": "A storybook spotted-mushroom cottage with a mint striped awning, warm pastry display window, puffing stone chimney, and a napping orange cat.",
+      "defaultMood": "day",
+      "accent": "#e04d48",
+      "particles": "fireflies",
+      "camera": {
+        "az": 36,
+        "el": 30,
+        "zoom": 1
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 62,
+        "voxels": 72961,
+        "glowVoxels": 143,
+        "colors": 42,
+        "bytes": 293402
+      }
+    },
+    {
+      "id": "ramen",
+      "title": "Midnight Alley Ramen",
+      "subtitle": "Neon Yatai Corner",
+      "description": "A wet-cobblestone backstreet noodle cart under glowing red chochin lanterns, humming retro vending machine, steaming broth pot, and a curious alley cat.",
+      "defaultMood": "night",
+      "accent": "#ff9a3c",
+      "particles": "steam-rain",
+      "camera": {
+        "az": 40,
+        "el": 31,
+        "zoom": 1
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 58,
+        "voxels": 55323,
+        "glowVoxels": 447,
+        "colors": 57,
+        "bytes": 222850
+      }
+    },
+    {
+      "id": "lighthouse",
+      "title": "Tidepool Lighthouse Cove",
+      "subtitle": "Coastal Headland",
+      "description": "A red-and-cream coastal lighthouse with glowing lantern room, blue-roofed keeper cottage, timber pier, moored rowboat, tidepool starfish, and seagull.",
+      "defaultMood": "day",
+      "accent": "#4b73b7",
+      "particles": "sea-breeze",
+      "camera": {
+        "az": 44,
+        "el": 31,
+        "zoom": 1.02
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 64,
+        "voxels": 46897,
+        "glowVoxels": 238,
+        "colors": 43,
+        "bytes": 189146
+      }
+    },
+    {
+      "id": "observatory",
+      "title": "Cloudtop Star Observatory",
+      "subtitle": "Floating Sky Island",
+      "description": "A levitating meadow island above drifting clouds, crowned with a verdigris copper dome, brass telescope, glowing cyan star-crystal, and tiny stargazer.",
+      "defaultMood": "night",
+      "accent": "#6af2ff",
+      "particles": "stardust",
+      "camera": {
+        "az": 38,
+        "el": 28,
+        "zoom": 1.04
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 64,
+        "voxels": 22987,
+        "glowVoxels": 422,
+        "colors": 47,
+        "bytes": 93506
+      }
+    },
+    {
+      "id": "airmail",
+      "title": "Airmail Balloon Station",
+      "subtitle": "Sky Post Tower",
+      "description": "A round post tower with glowing portholes and a verdigris roof, a striped mail balloon moored to its walkway, and a pigeon postmaster minding the parcels.",
+      "defaultMood": "golden",
+      "accent": "#f0a58c",
+      "particles": "high-breeze",
+      "camera": {
+        "az": 40,
+        "el": 26,
+        "zoom": 1
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 92,
+        "voxels": 47198,
+        "glowVoxels": 80,
+        "colors": 62,
+        "bytes": 190350
+      }
+    },
+    {
+      "id": "listening",
+      "title": "Lanternfish Listening Station",
+      "subtitle": "Cold-Water Coral Survey",
+      "description": "A brass-lamped survey fish records the reef above pink sea fans. Cut the hull beside its three portholes to see the headphones and glowing oscillograph.",
+      "defaultMood": "dusk",
+      "accent": "#f5d26e",
+      "particles": "reef-bubbles",
+      "camera": {
+        "az": 26,
+        "el": 18,
+        "zoom": 1.34
+      },
+      "stats": {
+        "sx": 128,
+        "sy": 128,
+        "sz": 128,
+        "voxels": 72138,
+        "glowVoxels": 264,
+        "colors": 39,
+        "bytes": 290110
+      }
+    },
+    {
+      "id": "submarine",
+      "title": "Coral Reef Mini-Sub",
+      "subtitle": "Deep Sea Aquarium",
+      "description": "A retro yellow-and-coral research sub hovering over a glowing reef, with a hollow furnished cockpit, an octopus riding the conning tower, jellyfish, clownfish, and sunken treasure.",
+      "defaultMood": "dusk",
+      "accent": "#ee7473",
+      "particles": "bubbles",
+      "camera": {
+        "az": 38,
+        "el": 28,
+        "zoom": 1.02
+      },
+      "stats": {
+        "sx": 72,
+        "sy": 64,
+        "sz": 64,
+        "voxels": 53405,
+        "glowVoxels": 287,
+        "colors": 61,
+        "bytes": 215178
+      }
+    },
+    {
+      "id": "canyon",
+      "title": "Saguaro Gulch Express",
+      "subtitle": "Red-Rock Trestle Railway",
+      "description": "A little blue steam engine hauls a wagon of gold over a timber trestle, across a striped canyon with a turquoise creek, past a water tower, a whistle-stop depot, a howling coyote and a patient vulture.",
+      "defaultMood": "golden",
+      "accent": "#d18269",
+      "particles": "desert-dust",
+      "camera": {
+        "az": 40,
+        "el": 30,
+        "zoom": 1
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 58,
+        "voxels": 60432,
+        "glowVoxels": 50,
+        "colors": 76,
+        "bytes": 243286
+      }
+    },
+    {
+      "id": "moonbase",
+      "title": "Crater Garden Moonbase",
+      "subtitle": "Lunar Greenhouse Outpost",
+      "description": "A ribbed greenhouse dome of crops and an apple tree, a striped habitat with a dish, a red-nosed rocket on its pad, a six-wheeled rover, an astronaut planting a flag, glowing crater ice, and a tiny Earth overhead.",
+      "defaultMood": "night",
+      "accent": "#99cf35",
+      "particles": "stardust",
+      "camera": {
+        "az": 38,
+        "el": 30,
+        "zoom": 1.04
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 46,
+        "voxels": 36815,
+        "glowVoxels": 100,
+        "colors": 61,
+        "bytes": 148818
+      }
+    },
+    {
+      "id": "windmill",
+      "title": "Hilltop Flour Mill",
+      "subtitle": "Countryside Windmill",
+      "description": "A round stone windmill with four cloth sails and lit windows, a furnished room behind its open door, a duck pond, an apple tree, an old oak and a fenced meadow of wildflowers.",
+      "defaultMood": "golden",
+      "accent": "#8bb04a",
+      "particles": "high-breeze",
+      "camera": {
+        "az": 40,
+        "el": 28,
+        "zoom": 1
+      },
+      "stats": {
+        "sx": 64,
+        "sy": 64,
+        "sz": 64,
+        "voxels": 28256,
+        "glowVoxels": 98,
+        "colors": 50,
+        "bytes": 114582
+      }
+    }
+  ]
+}

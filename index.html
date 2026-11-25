@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Voxel Dioramas — voxel-script Showcase</title>
+  <meta name="description" content="Interactive 3D miniature voxel dioramas authored with voxel-script, exported to MagicaVoxel .vox, and rendered live in WebGL2.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-mood="dusk">
+  <div class="stage">
+    <canvas id="canvas" aria-label="Interactive 3D voxel diorama viewer"></canvas>
+    <div id="loading" class="loading-pill" aria-live="polite">Loading diorama…</div>
+    <div id="error-banner" class="error-banner hidden" role="alert"></div>
+  </div>
+
+  <!-- Top-left diorama placard -->
+  <header class="placard">
+    <div class="placard-eyebrow">
+      <span class="accent-dot" id="accent-dot"></span>
+      <span id="diorama-subtitle">Miniature Voxel Diorama</span>
+      <span class="eyebrow-sep">·</span>
+      <a class="workflow-link" href="https://github.com/davidfregoli/voxel-script" target="_blank" rel="noopener">voxel-script</a>
+    </div>
+    <h1 id="diorama-title">Yuzu Capybara Onsen</h1>
+    <p id="diorama-desc" class="placard-desc"></p>
+  </header>
+
+  <!-- Top-right floating toolbar -->
+  <nav class="toolbar" aria-label="Viewer controls">
+    <div class="pill-group" role="group" aria-label="Lighting mood">
+      <button class="pill-btn" data-mood-btn="day" title="Daylight">Day</button>
+      <button class="pill-btn" data-mood-btn="golden" title="Golden hour">Golden</button>
+      <button class="pill-btn" data-mood-btn="dusk" title="Cozy dusk">Dusk</button>
+      <button class="pill-btn" data-mood-btn="night" title="Moonlit night">Night</button>
+    </div>
+    <div class="pill-group">
+      <button id="btn-spin" class="pill-btn active" title="Toggle turntable auto-spin (Space)">Spin</button>
+      <button id="btn-proj" class="pill-btn" title="Toggle Orthographic / Perspective (O)">Persp</button>
+      <button id="btn-fx" class="pill-btn active" title="Toggle ambient particles (P)">FX</button>
+      <button id="btn-inspect" class="pill-btn" title="Open voxel-script inspector (I)">Inspect</button>
+    </div>
+  </nav>
+
+  <!-- Right collapsible voxel-script inspector drawer -->
+  <aside id="inspector" class="inspector hidden" aria-label="Voxel-script inspector">
+    <div class="inspector-head">
+      <div>
+        <div class="inspector-kicker">EXPORTED .VOX INSPECTOR</div>
+        <div class="inspector-file" id="insp-filename">onsen.vox</div>
+      </div>
+      <button id="btn-close-inspect" class="icon-btn" aria-label="Close inspector">✕</button>
+    </div>
+
+    <div class="inspector-section">
+      <div class="section-label">Isometric 4-Angle Snap <span class="mono-dim">(view.mjs)</span></div>
+      <div class="snap-grid">
+        <button class="snap-btn" data-snap="45">Front-Right</button>
+        <button class="snap-btn" data-snap="135">Back-Right</button>
+        <button class="snap-btn" data-snap="225">Back-Left</button>
+        <button class="snap-btn" data-snap="315">Front-Left</button>
+      </div>
+    </div>
+
+    <div class="inspector-section">
+      <div class="slider-row">
+        <label class="section-label" for="slice-z">Z-Layer Slice</label>
+        <span class="mono-val" id="slice-z-val">64 / 64</span>
+      </div>
+      <input id="slice-z" type="range" min="1" max="64" value="64" step="1">
+
+      <div class="slider-row" style="margin-top: 12px;">
+        <label class="section-label" for="sun-rot">Sun Azimuth</label>
+        <span class="mono-val" id="sun-rot-val">0°</span>
+      </div>
+      <input id="sun-rot" type="range" min="-180" max="180" value="0" step="1">
+    </div>
+
+    <div class="inspector-section">
+      <div class="section-label">Decoded .VOX Telemetry</div>
+      <dl class="stats-grid">
+        <div><dt>Grid</dt><dd id="stat-grid">—</dd></div>
+        <div><dt>Voxels</dt><dd id="stat-voxels">—</dd></div>
+        <div><dt>Faces</dt><dd id="stat-faces">—</dd></div>
+        <div><dt>Lights</dt><dd id="stat-lights">—</dd></div>
+        <div><dt>Colors</dt><dd id="stat-colors">—</dd></div>
+        <div><dt>File</dt><dd id="stat-bytes">—</dd></div>
+      </dl>
+    </div>
+
+    <div class="inspector-section">
+      <div class="section-label">Embedded RGBA Palette</div>
+      <div id="swatch-strip" class="swatch-strip"></div>
+    </div>
+
+    <div class="inspector-section">
+      <div class="section-label">CPU Reference Render</div>
+      <button id="btn-cpu-sheet" class="cpu-preview-btn" title="View 4-angle CPU raycast contact sheet from view.mjs">
+        <img id="insp-sheet-thumb" alt="CPU 4-angle preview" loading="lazy">
+        <span>Open 4-Angle CPU Sheet</span>
+      </button>
+    </div>
+
+    <div class="inspector-actions">
+      <a id="btn-download-vox" class="action-btn primary" download>Download .vox</a>
+      <button id="btn-reset-cam" class="action-btn">Reset View</button>
+    </div>
+  </aside>
+
+  <!-- Bottom floating gallery dock -->
+  <footer class="dock-wrap">
+    <div class="dock" id="dock" role="tablist" aria-label="Diorama collection"></div>
+    <div class="hint-line">Drag to orbit · Scroll to zoom · Right-drag to pan · Keys <kbd>1</kbd>–<kbd>9</kbd> &amp; <kbd>Space</kbd></div>
+  </footer>
+
+  <!-- Lightbox modal for the CPU 4-angle contact sheet -->
+  <div id="cpu-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="CPU raycast reference sheet">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <strong id="modal-title">CPU Raycast Reference</strong>
+          <span class="mono-dim" id="modal-sub">Rendered directly from exported .vox via voxel-script/view.mjs</span>
+        </div>
+        <button id="btn-close-modal" class="icon-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <img id="modal-img" alt="4-angle CPU voxel-script preview">
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
