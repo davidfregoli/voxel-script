@@ -136,3 +136,59 @@ test('elevations and clipped runs write their own files and replace no normal pr
     assert.match(bad.stderr, message)
   }
 })
+
+test('focus and zoom write a close-up sheet centred on the chosen voxel and replace no normal preview', (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'voxel-script-focus-'))
+  t.after(() => rmSync(cwd, { recursive: true, force: true }))
+  // A grey block with one glow voxel on its front face. Glow is drawn unlit, so its pixels are the exact palette colour.
+  const model = new Model(16, 16, 16).box(0, 0, 0, 15, 15, 15, 20).set(3, 0, 12, 249)
+  writeFileSync(join(cwd, 'block.vox'), encodeVox(model, PALETTE))
+  const glow = Buffer.from(PALETTE.subarray(4 * 248, 4 * 249))
+  const view = (...args) => run('view.mjs', ['block', '--input', '.', '--out', 'out', '--size', '96', ...args], cwd)
+  const count = (name) => {
+    const { rgba } = decodePng(readFileSync(join(cwd, 'out', name)))
+    let n = 0
+    for (let i = 0; i < rgba.length; i += 4) if (rgba.subarray(i, i + 4).equals(glow)) n++
+    return n
+  }
+  assert.equal(view().status, 0)
+  const before = new Map(readdirSync(join(cwd, 'out')).map((name) => [name, readFileSync(join(cwd, 'out', name))]))
+
+  const close = view('--focus', '3,0,12')
+  assert.equal(close.status, 0, close.stderr)
+  assert.match(close.stdout, /block-sheet-focus-3-0-12-zoom-3\.png/)
+  const tight = view('--focus', '3,0,12', '--zoom', '6')
+  assert.equal(tight.status, 0, tight.stderr)
+  // The marker covers more pixels the closer the view, and the focus voxel sits at the centre of a front tile.
+  const normal = count('block-sheet.png'), x3 = count('block-sheet-focus-3-0-12-zoom-3.png'), x6 = count('block-sheet-focus-3-0-12-zoom-6.png')
+  assert.ok(normal > 0 && x3 > 4 * normal && x6 > 2 * x3, `${normal} ${x3} ${x6}`)
+  // In the front-right tile (96px, at 16,52 on the sheet) the marker's visible face is within a voxel of the centre.
+  const sheet = decodePng(readFileSync(join(cwd, 'out/block-sheet-focus-3-0-12-zoom-6.png')))
+  let sumX = 0, sumY = 0, n = 0
+  for (let y = 0; y < 96; y++)
+    for (let x = 0; x < 96; x++) {
+      const i = ((52 + y) * sheet.width + 16 + x) * 4
+      if (!sheet.rgba.subarray(i, i + 4).equals(glow)) continue
+      sumX += x; sumY += y; n++
+    }
+  const voxel = 96 * 6 / (Math.hypot(16, 16, 16) * 1.08) // pixels per voxel at this zoom
+  assert.ok(n > 0 && Math.abs(sumX / n - 48) < voxel && Math.abs(sumY / n - 48) < voxel, `marker centre ${sumX / n},${sumY / n}`)
+
+  assert.equal(view('--zoom', '2.5').status, 0)
+  assert.equal(view('--zoom', '2', '--clip', 'z:..8', '--focus', '3,0,4').status, 0)
+  const after = readdirSync(join(cwd, 'out'))
+  assert.ok(after.includes('block-sheet-zoom-2.5.png'))
+  assert.ok(after.includes('block-sheet-clip-z0-8-focus-3-0-4-zoom-2.png'))
+  assert.equal(after.length, before.size + 4)
+  for (const [name, bytes] of before) assert.deepEqual(readFileSync(join(cwd, 'out', name)), bytes, name)
+
+  for (const [args, message] of [
+    [['--focus', '3,0'], /invalid --focus/], [['--focus', '3,0,x'], /invalid --focus/], [['--focus', '3.5,0,2'], /invalid --focus/],
+    [['--focus', '3,0,16'], /outside block, which is 16x16x16/], [['--zoom', '0'], /invalid --zoom/], [['--zoom', '40'], /invalid --zoom/],
+    [['--zoom', 'near'], /invalid --zoom/],
+  ]) {
+    const bad = view(...args)
+    assert.equal(bad.status, 1, args.join(' '))
+    assert.match(bad.stderr, message)
+  }
+})

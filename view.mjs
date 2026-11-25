@@ -27,8 +27,13 @@ size-sheet.png for the whole directory; a run that names models leaves those two
   --elevations     also write <model>-elevations.png: front, right and top views drawn at a whole number of pixels
                    per voxel, with a ruler tick every ${TICK} voxels, so the (x, y, z) of a defect can be read off
   --clip <range>   cut the model before rendering, to look inside it. z:28 keeps z <= 28, y:10.. keeps y >= 10,
-                   x:8..40 keeps a range. Repeat it for more axes. A clipped run writes only
-                   <model>-sheet-clip-<range>.png (and elevations with the same suffix)`
+                   x:8..40 keeps a range. Repeat it for more axes
+  --focus <x,y,z>  centre the four isometric views on that voxel, for a close-up of one part. Take the coordinates
+                   from the elevation rulers. Zooms in 3 times unless --zoom says otherwise
+  --zoom <n>       magnify the four isometric views n times, 1..16; with no --focus, about the usual centre
+
+A run with --clip, --focus or --zoom is a one-off look at a detail. It writes only <model>-sheet-<what>.png, such as
+robot-sheet-clip-z0-20-focus-14-5-18-zoom-3.png, and replaces no normal preview. Elevations follow --clip only.`
 
 // A small x / y / z compass in the corner of an isometric tile, so a direction seen in the image can be named.
 const AXES = [['x', [232, 104, 96]], ['y', [124, 204, 112]], ['z', [116, 164, 244]]]
@@ -54,6 +59,18 @@ function parseClip(specs) {
     ranges[m[1]] = range
   }
   return ranges
+}
+
+// '--focus 14,5,18' is a voxel; '--zoom 3' a magnification. Focus alone zooms in three times.
+function parseDetail(focus, zoom) {
+  let at = null
+  if (focus !== undefined) {
+    if (!/^\d+,\d+,\d+$/.test(focus)) throw new Error(`invalid --focus ${focus}; use the x,y,z of a voxel, such as 14,5,18`)
+    at = focus.split(',').map(Number)
+  }
+  const times = zoom === undefined ? (at ? 3 : 1) : Number(zoom)
+  if (!(times >= 1 && times <= 16)) throw new Error(`invalid --zoom ${zoom}; use a number from 1 to 16`)
+  return { at, times }
 }
 
 // Front, right and top elevations at k pixels per voxel. Each has a labelled tick every TICK voxels and a faint grid
@@ -96,6 +113,8 @@ try {
       size: { type: 'string', default: '192' },
       elevations: { type: 'boolean' },
       clip: { type: 'string', multiple: true },
+      focus: { type: 'string' },
+      zoom: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   })
@@ -106,8 +125,11 @@ try {
     if (!Number.isInteger(size) || size < 64 || size > 512) throw new Error(`invalid --size ${values.size}; use a whole number of pixels from 64 to 512`)
     const ranges = parseClip(values.clip ?? [])
     const clipped = Object.keys(ranges).length > 0
-    // The two shared sheets describe the whole directory, so only a run over all of it writes them.
-    const shared = !clipped && positionals.length === 0
+    const { at, times } = parseDetail(values.focus, values.zoom)
+    // A cut or a close-up is a one-off look at a detail: it gets its own file names and replaces nothing else.
+    const detail = clipped || at !== null || times !== 1
+    // The two shared sheets describe the whole directory, so only a normal run over all of it writes them.
+    const shared = !detail && positionals.length === 0
     const names = [...new Set(positionals.length ? positionals : readdirSync(values.input).filter((name) => name.endsWith('.vox')).map((name) => name.slice(0, -4)).sort())]
     if (!names.length) throw new Error('no .vox files found; run node gen.mjs first')
     const models = names.map((name) => {
@@ -132,22 +154,30 @@ try {
       const dims = { x: model.grid.sx, y: model.grid.sy, z: model.grid.sz }
       for (const [axis, [lo]] of Object.entries(ranges))
         if (lo >= dims[axis]) throw new Error(`--clip ${axis}:${lo}.. keeps nothing: ${name} is ${dims.x}x${dims.y}x${dims.z}`)
+      if (at && !(at[0] < dims.x && at[1] < dims.y && at[2] < dims.z))
+        throw new Error(`--focus ${at.join(',')} is outside ${name}, which is ${dims.x}x${dims.y}x${dims.z}`)
       const kept = Object.entries(ranges).map(([axis, [lo, hi]]) => [axis, lo, Math.min(hi, dims[axis] - 1)])
       const grid = clipped ? clip(model.grid, ranges) : model.grid
-      // A clipped run is a one-off look inside, so its files get their own names and replace nothing else.
-      const suffix = clipped ? `-clip-${kept.map(([axis, lo, hi]) => `${axis}${lo}-${hi}`).join('-')}` : ''
-      const label = clipped ? `${name} - clip ${kept.map(([axis, lo, hi]) => `${axis} ${lo}-${hi}`).join(' ')}` : name
+      const cut = clipped ? `-clip-${kept.map(([axis, lo, hi]) => `${axis}${lo}-${hi}`).join('-')}` : ''
+      const suffix = cut + (at ? `-focus-${at.join('-')}` : '') + (times !== 1 ? `-zoom-${times}` : '')
+      const label = [name, clipped && `clip ${kept.map(([axis, lo, hi]) => `${axis} ${lo}-${hi}`).join(' ')}`,
+        at && `focus ${at.join(' ')}`, times !== 1 && `zoom ${times}`].filter(Boolean).join(' - ')
+      // A close-up looks at the centre of the focus voxel, `times` closer than the view that fits the whole model.
+      const camera = detail ? {
+        target: at ? at.map((n) => n + 0.5) : undefined,
+        scale: (Math.hypot(grid.sx, grid.sy, grid.sz) * 1.08) / size / times,
+      } : {}
       const made = []
 
       const sheet = image(16 * 2 + 2 * size + pad, 36 + 2 * (size + 28), BG)
       text(sheet, `${label} - four views`, 16, 12)
       for (const [col, [angle, az]] of views.entries()) {
-        const img = render(grid, palette, { width: size, height: size, az, el: isoElevation })
+        const img = render(grid, palette, { width: size, height: size, az, el: isoElevation, ...camera })
         const sx = 16 + (col % 2) * (size + pad), sy = 36 + Math.floor(col / 2) * (size + 28)
         text(sheet, angle, sx, sy + 3, 1)
         blit(sheet, img, sx, sy + 16)
         compass(sheet, sx + 18, sy + 16 + size - 18, az)
-        if (clipped) continue
+        if (detail) continue
         save(join(values.out, `${name}-${angle}.png`), img)
         if (shared) {
           const x = 16 + col * (size + pad), y = 32 + row * rowH
@@ -160,11 +190,12 @@ try {
 
       if (values.elevations) {
         const k = Math.max(1, Math.round(size / Math.max(grid.sx, grid.sy, grid.sz)))
-        save(join(values.out, `${name}-elevations${suffix}.png`), elevationSheet(`${label} - elevations`, grid, palette, k))
-        made.push(`${name}-elevations${suffix}.png (${k} px per voxel)`)
+        const title = clipped ? `${name} - clip ${kept.map(([axis, lo, hi]) => `${axis} ${lo}-${hi}`).join(' ')}` : name
+        save(join(values.out, `${name}-elevations${cut}.png`), elevationSheet(`${title} - elevations`, grid, palette, k))
+        made.push(`${name}-elevations${cut}.png (${k} px per voxel)`)
       }
 
-      if (!clipped) {
+      if (!detail) {
         const game = render(grid, palette, { width: 64, height: 64, az: 45, el: isoElevation })
         const ui = render(grid, palette, { width: 128, height: 128, az: 45, el: isoElevation })
         save(join(values.out, `${name}-game-64.png`), game)
