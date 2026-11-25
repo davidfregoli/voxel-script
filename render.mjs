@@ -3,6 +3,8 @@
 // This is an inspection tool, independent of any real-time engine renderer.
 import { isGlow } from './palette.mjs'
 
+export { place } from './model.mjs' // its home; still exported here for recipes that import it from the renderer
+
 const toLinear = (c) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
 const toSrgb = (l) => Math.round(255 * (l <= 0.0031308 ? l * 12.92 : 1.055 * Math.min(1, l) ** (1 / 2.4) - 0.055))
 const AO = [0.5, 0.68, 0.84, 1]
@@ -192,22 +194,4 @@ export function text(img, str, ox, oy, size = 2, rgb = [220, 224, 232]) {
     }
     x += 4 * size
   }
-}
-
-// --- Scenes ------------------------------------------------------------------------------------------------------
-
-// Stamp a model into a scene grid with its pivot (centre of its size box, bottom) at (cx, cy, z0), turned `turns`
-// quarter turns counter-clockwise seen from above.
-export function place(scene, model, cx, cy, z0, turns = 0) {
-  const { sx, sy, sz, v } = model
-  for (let z = 0; z < sz; z++)
-    for (let y = 0; y < sy; y++)
-      for (let x = 0; x < sx; x++) {
-        const c = v[x + sx * (y + sy * z)]
-        if (!c) continue
-        let ux = x + 0.5 - sx / 2, uy = y + 0.5 - sy / 2
-        for (let t = 0; t < (((turns % 4) + 4) % 4); t++) [ux, uy] = [-uy, ux]
-        const X = Math.floor(cx + ux), Y = Math.floor(cy + uy), Z = z0 + z
-        if (X >= 0 && Y >= 0 && Z >= 0 && X < scene.sx && Y < scene.sy && Z < scene.sz) scene.v[X + scene.sx * (Y + scene.sy * Z)] = c
-      }
 }

@@ -1,6 +1,7 @@
 // A small voxel builder for seeding models in code. Coordinates are MagicaVoxel's (Z up), and voxel (x, y, z)
 // fills the unit cube from (x, y, z) to (x + 1, y + 1, z + 1), so shapes test voxel centres (x + 0.5, ...).
-// A colour argument is a palette index or a function (x, y, z) => index (0 clears).
+// A colour argument is a palette index or a function (x, y, z, prev) => index (0 clears), where prev is the index
+// already in that voxel. Returning prev leaves the voxel as it was; ifEmpty and ifFilled below build on that.
 
 export class Model {
   constructor(sx, sy, sz) {
@@ -22,7 +23,10 @@ export class Model {
   }
 
   set(x, y, z, c) {
-    if (this.has(x, y, z)) this.v[x + this.sx * (y + this.sy * z)] = typeof c === 'function' ? c(x, y, z) : c
+    if (this.has(x, y, z)) {
+      const i = x + this.sx * (y + this.sy * z)
+      this.v[i] = typeof c === 'function' ? c(x, y, z, this.v[i]) : c
+    }
     return this
   }
 
@@ -57,6 +61,25 @@ export class Model {
 
   cylY(cx, cz, r, y0, y1, c) {
     return this.shape((px, py, pz, x, y) => y >= y0 && y <= y1 && (px - cx) ** 2 + (pz - cz) ** 2 <= r * r, c)
+  }
+
+  // A capsule: every voxel whose centre is within r of the segment from (x0, y0, z0) to (x1, y1, z1). The end points
+  // are positions, not voxel indices, so the centre line of voxel column x is x + 0.5. Use it for branches, cables,
+  // pipes and limbs that do not follow an axis.
+  tube(x0, y0, z0, x1, y1, z1, r, c) {
+    const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0
+    const len2 = dx * dx + dy * dy + dz * dz || 1
+    return this.shape((px, py, pz) => {
+      const t = Math.max(0, Math.min(1, ((px - x0) * dx + (py - y0) * dy + (pz - z0) * dz) / len2))
+      const ex = px - (x0 + dx * t), ey = py - (y0 + dy * t), ez = pz - (z0 + dz * t)
+      return ex * ex + ey * ey + ez * ez <= r * r
+    }, c)
+  }
+
+  // Stamp another model (or any { sx, sy, sz, v } grid) into this one; see place() below.
+  place(model, cx, cy, z0, turns = 0) {
+    place(this, model, cx, cy, z0, turns)
+    return this
   }
 
   // Recolour filled voxels: fn(x, y, z, c) returns the new index, or undefined to keep it.
@@ -104,6 +127,30 @@ export class Model {
     return -1
   }
 }
+
+// Stamp a model into a scene grid with its pivot (centre of its size box, bottom) at (cx, cy, z0), turned `turns`
+// quarter turns counter-clockwise seen from above. Both arguments can be plain { sx, sy, sz, v } grids, such as a
+// decoded .vox model. Empty source voxels do not erase the scene, and voxels that fall outside it are dropped.
+export function place(scene, model, cx, cy, z0, turns = 0) {
+  const { sx, sy, sz, v } = model
+  for (let z = 0; z < sz; z++)
+    for (let y = 0; y < sy; y++)
+      for (let x = 0; x < sx; x++) {
+        const c = v[x + sx * (y + sy * z)]
+        if (!c) continue
+        let ux = x + 0.5 - sx / 2, uy = y + 0.5 - sy / 2
+        for (let t = 0; t < (((turns % 4) + 4) % 4); t++) [ux, uy] = [-uy, ux]
+        const X = Math.floor(cx + ux), Y = Math.floor(cy + uy), Z = z0 + z
+        if (X >= 0 && Y >= 0 && Z >= 0 && X < scene.sx && Y < scene.sy && Z < scene.sz) scene.v[X + scene.sx * (Y + scene.sy * Z)] = c
+      }
+}
+
+// Write filters wrap any colour argument and work with every shape: m.box(..., ifEmpty(R.stone[3])).
+// ifEmpty(c) fills only empty voxels, so a later shape cannot overwrite what is already there.
+// ifFilled(c) recolours only filled voxels, so a shape can paint a region without adding to it.
+const pick = (c, x, y, z, prev) => (typeof c === 'function' ? c(x, y, z, prev) : c)
+export const ifEmpty = (c) => (x, y, z, prev) => prev || pick(c, x, y, z, prev)
+export const ifFilled = (c) => (x, y, z, prev) => (prev ? pick(c, x, y, z, prev) : 0)
 
 // Deterministic noise in [0, 1) so generated models are reproducible.
 export function hash(x, y, z = 0, seed = 0) {
