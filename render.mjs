@@ -165,6 +165,33 @@ export function render(grid, palette, opts) {
   return { width, height, rgba: out }
 }
 
+// --- Inspection views ----------------------------------------------------------------------------------------------
+
+// An axis-aligned orthographic view at `k` pixels per voxel. Every k x k block of pixels is exactly one voxel column,
+// so a coordinate can be read straight off the image. Empty pixels are transparent.
+//   front: +X to the right, +Z up (seen from -Y)     right: +Y to the right, +Z up (seen from +X)
+//   top:   +X to the right, +Y up (seen from above)
+export function elevation(grid, palette, view, k = 4) {
+  const { sx, sy, sz } = grid
+  const spec = { front: [sx, sz, 0, 0], right: [sy, sz, 90, 0], top: [sx, sy, 0, 90] }[view]
+  if (!spec) throw new Error(`unknown elevation: ${view}; use front, right or top`)
+  if (!Number.isInteger(k) || k < 1) throw new Error('elevation scale must be a whole number of pixels per voxel')
+  const [w, h, az, el] = spec
+  return render(grid, palette, { width: w * k, height: h * k, az, el, scale: 1 / k, target: [sx / 2, sy / 2, sz / 2], sun: { az: az - 40, el: 50 }, ground: false })
+}
+
+// A copy of a grid that keeps only the voxels inside inclusive ranges, such as { z: [0, 28] } or { y: [10, 63] }.
+// The size is unchanged, so coordinates in the cut model still match the whole one.
+export function clip(grid, ranges) {
+  const { sx, sy, sz } = grid
+  const [x0, x1] = ranges.x ?? [0, sx - 1], [y0, y1] = ranges.y ?? [0, sy - 1], [z0, z1] = ranges.z ?? [0, sz - 1]
+  const v = new Uint8Array(grid.v.length)
+  for (let z = Math.max(0, z0); z <= Math.min(sz - 1, z1); z++)
+    for (let y = Math.max(0, y0); y <= Math.min(sy - 1, y1); y++)
+      for (let x = Math.max(0, x0); x <= Math.min(sx - 1, x1); x++) v[x + sx * (y + sy * z)] = grid.v[x + sx * (y + sy * z)]
+  return { sx, sy, sz, v }
+}
+
 // --- Image helpers -------------------------------------------------------------------------------------------------
 
 export function image(width, height, rgb = [0, 0, 0]) {
@@ -188,6 +215,11 @@ export function blit(dst, src, ox, oy) {
       if (!src.rgba[(y * src.width + x) * 4 + 3]) continue
       src.rgba.copy(dst.rgba, (dy * dst.width + dx) * 4, (y * src.width + x) * 4, (y * src.width + x) * 4 + 4)
     }
+}
+
+export function rect(img, ox, oy, w, h, rgb) {
+  for (let y = Math.max(0, oy); y < Math.min(img.height, oy + h); y++)
+    for (let x = Math.max(0, ox); x < Math.min(img.width, ox + w); x++) img.rgba.set(rgb, (y * img.width + x) * 4)
 }
 
 // A 3 x 5 pixel font for labels.

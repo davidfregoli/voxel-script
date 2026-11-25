@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Model } from '../model.mjs'
 import { PALETTE, R, G } from '../palette.mjs'
-import { render, direction } from '../render.mjs'
+import { render, direction, elevation, clip } from '../render.mjs'
 import { encodePng, decodePng } from '../png.mjs'
 import { recipes } from '../models.mjs'
 
@@ -52,4 +52,49 @@ test('rays are clipped to the filled voxels: a padded scene renders like the mod
   const corner = new Model(64, 64, 64).set(63, 63, 63, R.bone[6])
   const img = render(corner, PALETTE, { width: 64, height: 64, az: 45, el: 35, ground: false })
   assert.ok(img.rgba.some((b, i) => i % 4 === 3 && b === 255))
+})
+
+test('elevations map pixels exactly onto voxel coordinates', () => {
+  // An asymmetric block with one glow marker per face. Glow is drawn unlit, so its pixels are the exact palette colour.
+  const m = new Model(8, 6, 4).box(0, 0, 0, 7, 5, 2, R.stone[3])
+  m.set(1, 0, 1, G.red).set(7, 4, 1, G.cyan).set(6, 1, 3, G.lime)
+  const rgb = (index) => [...PALETTE.subarray((index - 1) * 4, (index - 1) * 4 + 3)]
+  for (const k of [1, 3, 4]) {
+    // The centre pixel of the voxel `u` columns from the left and `v` rows from the bottom.
+    const at = (img, u, v) => {
+      const p = ((img.height - 1 - (v * k + (k >> 1))) * img.width + u * k + (k >> 1)) * 4
+      return img.rgba[p + 3] ? [...img.rgba.subarray(p, p + 3)] : null
+    }
+    const front = elevation(m, PALETTE, 'front', k) // +X right, +Z up
+    assert.deepEqual([front.width, front.height], [8 * k, 4 * k])
+    assert.deepEqual(at(front, 1, 1), rgb(G.red))
+    assert.deepEqual(at(front, 6, 3), rgb(G.lime))
+    assert.equal(at(front, 0, 3), null)
+    const right = elevation(m, PALETTE, 'right', k) // +Y right, +Z up, seen from +X
+    assert.deepEqual([right.width, right.height], [6 * k, 4 * k])
+    assert.deepEqual(at(right, 4, 1), rgb(G.cyan))
+    assert.deepEqual(at(right, 1, 3), rgb(G.lime))
+    assert.equal(at(right, 4, 3), null)
+    const top = elevation(m, PALETTE, 'top', k) // +X right, +Y up
+    assert.deepEqual([top.width, top.height], [8 * k, 6 * k])
+    assert.deepEqual(at(top, 6, 1), rgb(G.lime))
+    assert.notEqual(at(top, 1, 0), null)
+    assert.notDeepEqual(at(top, 1, 0), rgb(G.red)) // the red marker faces the front, not the sky
+  }
+  assert.throws(() => elevation(m, PALETTE, 'left'), /unknown elevation/)
+  assert.throws(() => elevation(m, PALETTE, 'front', 2.5), /whole number/)
+})
+
+test('clip keeps inclusive ranges, the grid size and the source grid', () => {
+  const m = new Model(8, 6, 4).box(0, 0, 0, 7, 5, 2, R.stone[3])
+  m.set(1, 0, 1, G.red).set(7, 4, 1, G.cyan).set(6, 1, 3, G.lime)
+  const cut = clip(m, { z: [0, 2], y: [1, 255] })
+  assert.deepEqual([cut.sx, cut.sy, cut.sz, cut.v.length], [8, 6, 4, m.v.length])
+  assert.equal(cut.v[6 + 8 * (1 + 6 * 3)], 0) // the lime marker at z = 3 is gone
+  assert.equal(cut.v[1 + 8 * (0 + 6 * 1)], 0) // the red marker at y = 0 is gone
+  assert.equal(cut.v[7 + 8 * (4 + 6 * 1)], G.cyan)
+  assert.equal(cut.v[0 + 8 * (1 + 6 * 2)], R.stone[3]) // both ends of a range are kept
+  assert.equal(m.get(6, 1, 3), G.lime) // the source grid is untouched
+  assert.deepEqual(clip(m, {}).v, m.v)
+  assert.ok(clip(m, { x: [20, 30] }).v.every((c) => c === 0))
 })
