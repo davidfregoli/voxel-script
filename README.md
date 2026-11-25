@@ -4,6 +4,8 @@ Small JavaScript recipes → `.vox` models → CPU-rendered PNG previews. No npm
 
 Extracted from the **Power Defense authoring tools**, with three new standalone demos: lantern, mushroom and robot. This repository includes the voxel utilities, not the game engine or its full model/asset library.
 
+**[Browse the diorama gallery](https://davidfregoli.github.io/voxel-script/)**: twelve larger scenes built with these tools, shown in an interactive WebGL viewer. It is published from the `gh-pages` branch as exported `.vox` files; the viewer and the scene recipes are not part of `main`.
+
 ![Lantern, mushroom and robot, each rendered from its exported VOX file in four directions](docs/demo.png)
 
 ## Fresh-clone quickstart
