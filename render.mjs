@@ -17,19 +17,47 @@ export function direction(az, el) {
   return [Math.cos(rad(el)) * Math.sin(rad(az)), -Math.cos(rad(el)) * Math.cos(rad(az)), Math.sin(rad(el))]
 }
 
+// The camera frame for a view: `back` points from the target to the viewer, `d` is the ray direction, and `right`
+// and `up` span the image.
+export function basis(az, el) {
+  const back = direction(az, el)
+  const d = back.map((x) => -x)
+  const right = [d[1], -d[0], 0]
+  const rl = Math.hypot(right[0], right[1]) || 1
+  right[0] /= rl
+  right[1] /= rl
+  const up = [right[1] * d[2] - right[2] * d[1], right[2] * d[0] - right[0] * d[2], right[0] * d[1] - right[1] * d[0]]
+  return { back, d, right, up }
+}
+
 function tracer(grid) {
   const { sx, sy, sz, v } = grid
-  const size = [sx, sy, sz]
+  // Rays are clipped to the box around the filled voxels, not the whole grid, so the empty margins of a sparse or
+  // padded scene cost nothing. The image is the same either way.
+  const lo = [sx, sy, sz], hi = [-1, -1, -1]
+  for (let z = 0, i = 0; z < sz; z++)
+    for (let y = 0; y < sy; y++)
+      for (let x = 0; x < sx; x++, i++) {
+        if (!v[i]) continue
+        if (x < lo[0]) lo[0] = x
+        if (x > hi[0]) hi[0] = x
+        if (y < lo[1]) lo[1] = y
+        if (y > hi[1]) hi[1] = y
+        if (z < lo[2]) lo[2] = z
+        if (z > hi[2]) hi[2] = z
+      }
+  const max = hi.map((n) => n + 1)
   const occ = (x, y, z) => (x >= 0 && y >= 0 && z >= 0 && x < sx && y < sy && z < sz ? v[x + sx * (y + sy * z)] : 0)
   // First filled voxel along o + t d: { t, x, y, z, axis, c } or null. `axis` is the face crossed to enter it.
   function trace(o, d) {
+    if (hi[0] < 0) return null // an empty grid
     let t0 = 0, t1 = Infinity, axis = -1
     for (let a = 0; a < 3; a++) {
       if (Math.abs(d[a]) < 1e-12) {
-        if (o[a] < 0 || o[a] > size[a]) return null
+        if (o[a] < lo[a] || o[a] > max[a]) return null
         continue
       }
-      let ta = -o[a] / d[a], tb = (size[a] - o[a]) / d[a]
+      let ta = (lo[a] - o[a]) / d[a], tb = (max[a] - o[a]) / d[a]
       if (ta > tb) [ta, tb] = [tb, ta]
       if (ta > t0) {
         t0 = ta
@@ -38,7 +66,7 @@ function tracer(grid) {
       if (tb < t1) t1 = tb
       if (t0 > t1) return null
     }
-    const p = [0, 1, 2].map((a) => Math.min(size[a] - 1, Math.max(0, Math.floor(o[a] + d[a] * (t0 + 1e-7)))))
+    const p = [0, 1, 2].map((a) => Math.min(hi[a], Math.max(lo[a], Math.floor(o[a] + d[a] * (t0 + 1e-7)))))
     const step = d.map((x) => (x > 0 ? 1 : -1))
     const delta = d.map((x) => (x !== 0 ? Math.abs(1 / x) : Infinity))
     const next = [0, 1, 2].map((a) => (d[a] !== 0 ? ((d[a] > 0 ? p[a] + 1 : p[a]) - o[a]) / d[a] : Infinity))
@@ -89,13 +117,7 @@ export function render(grid, palette, opts) {
   const groundA = [0.052, 0.058, 0.07], groundB = [0.043, 0.048, 0.059]
   const { trace, occ } = tracer(grid)
 
-  const back = direction(az, el)
-  const d = back.map((x) => -x)
-  const right = [d[1], -d[0], 0]
-  const rl = Math.hypot(right[0], right[1]) || 1
-  right[0] /= rl
-  right[1] /= rl
-  const up = [right[1] * d[2] - right[2] * d[1], right[2] * d[0] - right[0] * d[2], right[0] * d[1] - right[1] * d[0]]
+  const { back, d, right, up } = basis(az, el)
   const far = grid.sx + grid.sy + grid.sz + 16
 
   const out = Buffer.alloc(width * height * 4)

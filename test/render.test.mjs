@@ -33,3 +33,23 @@ test('glow retains palette RGB regardless of sun direction; regular colours are 
   m.set(0, 0, 0, R.bone[3])
   assert.notDeepEqual(render(m, PALETTE, { ...opts, sun: { az: 0, el: 0 } }).rgba, render(m, PALETTE, { ...opts, sun: { az: 180, el: 0 } }).rgba)
 })
+
+test('rays are clipped to the filled voxels: a padded scene renders like the model alone, an empty grid is blank', () => {
+  const small = recipes.robot()
+  const padded = new Model(96, 96, 96).place(small, 48, 48, 0)
+  for (const [az, el] of [[45, 35.264], [225, 20], [0, 90]]) {
+    const opts = { width: 96, height: 96, az, el, scale: 0.7 }
+    const alone = render(small, PALETTE, { ...opts, target: [14, 12, 17], tile: [0, 0] })
+    const inScene = render(padded, PALETTE, { ...opts, target: [48, 48, 17], tile: [34, 36] })
+    // The two differ only in where rays start, so allow one step of rounding per channel.
+    for (let i = 0; i < alone.rgba.length; i++) assert.ok(Math.abs(alone.rgba[i] - inScene.rgba[i]) <= 1, `az ${az} byte ${i}`)
+  }
+  const empty = new Model(8, 8, 8)
+  assert.ok(render(empty, PALETTE, { width: 16, height: 16, az: 45, el: 35, ground: false }).rgba.every((b) => b === 0))
+  const floor = render(empty, PALETTE, { width: 16, height: 16, az: 45, el: 35 })
+  assert.ok(floor.rgba.every((b, i) => i % 4 !== 3 || b === 255))
+  // One voxel in the far corner of a large grid is still found, with its shadow on the ground.
+  const corner = new Model(64, 64, 64).set(63, 63, 63, R.bone[6])
+  const img = render(corner, PALETTE, { width: 64, height: 64, az: 45, el: 35, ground: false })
+  assert.ok(img.rgba.some((b, i) => i % 4 === 3 && b === 255))
+})
