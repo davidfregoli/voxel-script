@@ -1,5 +1,5 @@
 // Minimal MagicaVoxel .vox format (https://github.com/ephtracy/voxel-model).
-// The writer emits one model: version 150, MAIN containing SIZE, XYZI and RGBA.
+// The writer emits one model: version 150, MAIN containing SIZE, XYZI and RGBA, then any MATL materials asked for.
 // RGBA entry k stores colour index k + 1; index 0 is empty.
 // The reader returns raw model grids and skips unknown chunks. Scene transforms,
 // layers, materials and animation are not interpreted. It is intended for authored files.
@@ -18,7 +18,29 @@ function paletteChunk(palette) {
   return chunk('RGBA', Buffer.from(palette))
 }
 
-export function encodeVox(model, palette) {
+const int32 = (n) => {
+  const b = Buffer.alloc(4)
+  b.writeInt32LE(n)
+  return b
+}
+const string = (s) => Buffer.concat([int32(Buffer.byteLength(String(s))), Buffer.from(String(s))])
+
+// A MATL chunk: int32 material id, then a DICT (int32 pair count, then a STRING key and a STRING value per pair,
+// where a STRING is an int32 byte length followed by the bytes). The material id is the colour index.
+function materialChunk({ id, props }) {
+  if (!Number.isInteger(id) || id < 1 || id > 255) throw new Error('a material id is a colour index in 1..255')
+  const pairs = Object.entries(props)
+  return chunk('MATL', Buffer.concat([int32(id), int32(pairs.length), ...pairs.flatMap(([k, v]) => [string(k), string(v)])]))
+}
+
+// Materials that mark colour indices as light-emitting, for encodeVox. Checked in MagicaVoxel 0.99.7.2, which shows
+// these colours as Emit materials: `emit` 0..1 is its Emission slider (0..100) and `flux` is Power. At power 0 an
+// emitter keeps its palette colour; at 1 and above it renders white-hot.
+export const emissive = (indices, emit = 1, flux = 0) =>
+  indices.map((id) => ({ id, props: { _type: '_emit', _emit: emit, _flux: flux } }))
+
+// materials: [{ id, props }], written as MATL chunks after the palette. Leave it out for a file with none.
+export function encodeVox(model, palette, materials = []) {
   const { sx, sy, sz, v } = model
   if (![sx, sy, sz].every((n) => Number.isInteger(n) && n >= 1 && n <= 256))
     throw new Error('model dimensions must be integers in 1..256')
@@ -45,7 +67,7 @@ export function encodeVox(model, palette) {
   const head = Buffer.alloc(8)
   head.write('VOX ', 0, 'ascii')
   head.writeUInt32LE(150, 4)
-  return Buffer.concat([head, chunk('MAIN', Buffer.alloc(0), Buffer.concat([chunk('SIZE', size), chunk('XYZI', xyzi), paletteChunk(palette)]))])
+  return Buffer.concat([head, chunk('MAIN', Buffer.alloc(0), Buffer.concat([chunk('SIZE', size), chunk('XYZI', xyzi), paletteChunk(palette), ...materials.map(materialChunk)]))])
 }
 
 // The chunks directly under MAIN: [{ id, start, end, content }].

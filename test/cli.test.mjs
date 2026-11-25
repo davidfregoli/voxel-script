@@ -27,6 +27,10 @@ test('fresh generation, palette, overwrite protection, selection preflight and f
     assert.ok(data.models[0].v.some(Boolean))
     assert.deepEqual(Buffer.from(data.palette), palette.rgba)
   }
+  // The seven glow colours are exported as emissive materials, in index order from 249.
+  const exported = readFileSync(join(cwd, 'build/robot.vox'))
+  assert.equal(exported.toString('latin1').split('MATL').length - 1, 7)
+  assert.equal(exported.readInt32LE(exported.indexOf('MATL') + 12), 249)
   const sentinel = Buffer.from('hand-edited model - preserve me')
   writeFileSync(join(cwd, 'build/robot.vox'), sentinel)
   const refused = run('gen.mjs', ['robot'], cwd)

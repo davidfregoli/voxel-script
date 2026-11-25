@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import zlib from 'node:zlib'
 import { Model } from '../model.mjs'
 import { PALETTE, R, G } from '../palette.mjs'
-import { encodeVox, decodeVox, setVoxPalette } from '../vox.mjs'
+import { encodeVox, decodeVox, setVoxPalette, emissive } from '../vox.mjs'
 import { encodePng, decodePng } from '../png.mjs'
 
 test('VOX round trip preserves sparse voxels, boundary coordinates and all palette bytes', () => {
@@ -38,6 +38,52 @@ test('RGBA PNG and 256x1 palette round trips preserve exact bytes and alpha', ()
   assert.equal(palette.height, 1)
   assert.deepEqual(palette.rgba, Buffer.from(PALETTE))
   assert.deepEqual([...palette.rgba.subarray(4 * (G.amber - 1), 4 * G.amber)], [255, 211, 77, 255])
+})
+
+test('emissive materials are written as MATL chunks after the palette, and readers skip them', () => {
+  const m = new Model(4, 4, 4).box(0, 0, 0, 3, 3, 2, R.stone[3]).set(1, 1, 3, G.amber)
+  const plain = encodeVox(m, PALETTE)
+  assert.deepEqual(encodeVox(m, PALETTE, []), plain)
+  assert.equal(plain.includes('MATL'), false)
+  const lit = encodeVox(m, PALETTE, emissive([G.amber, G.cyan], 0.5, 2))
+  assert.deepEqual(lit.subarray(20, plain.length), plain.subarray(20), 'the model and palette chunks are unchanged')
+  assert.equal(lit.readUInt32LE(16), lit.length - 20, "MAIN's children size covers the materials")
+  // Walk the chunks after the palette: id, then a dictionary of string pairs.
+  const materials = []
+  for (let at = plain.length; at < lit.length;) {
+    assert.equal(lit.toString('latin1', at, at + 4), 'MATL')
+    const size = lit.readUInt32LE(at + 4)
+    assert.equal(lit.readUInt32LE(at + 8), 0)
+    const props = {}
+    let p = at + 20
+    for (let i = 0; i < lit.readInt32LE(at + 16); i++) {
+      const pair = []
+      for (let k = 0; k < 2; k++) {
+        const n = lit.readInt32LE(p)
+        pair.push(lit.toString('utf8', p + 4, p + 4 + n))
+        p += 4 + n
+      }
+      props[pair[0]] = pair[1]
+    }
+    assert.equal(p, at + 12 + size)
+    materials.push({ id: lit.readInt32LE(at + 12), props })
+    at = p
+  }
+  assert.deepEqual(materials, [
+    { id: G.amber, props: { _type: '_emit', _emit: '0.5', _flux: '2' } },
+    { id: G.cyan, props: { _type: '_emit', _emit: '0.5', _flux: '2' } },
+  ])
+  assert.deepEqual(emissive([G.red])[0].props, { _type: '_emit', _emit: 1, _flux: 0 }, 'full emission at power 0 by default')
+  const decoded = decodeVox(lit)
+  assert.deepEqual(decoded.models[0].v, m.v)
+  assert.deepEqual(decoded.palette, PALETTE)
+  // Replacing the palette keeps the materials byte for byte.
+  const replacement = PALETTE.slice()
+  replacement.set([1, 2, 3, 255], 0)
+  const updated = setVoxPalette(lit, replacement)
+  assert.deepEqual(updated.subarray(plain.length), lit.subarray(plain.length))
+  assert.deepEqual(decodeVox(updated).palette, replacement)
+  assert.throws(() => encodeVox(m, PALETTE, [{ id: 0, props: {} }]), /material id/)
 })
 
 // Independent filtered RGB fixture exercises every PNG unfilter path (the encoder writes RGBA/filter 0).
